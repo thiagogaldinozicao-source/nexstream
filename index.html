@@ -1059,6 +1059,14 @@ function toggleAdvanced(){
   el.style.display=el.style.display==="none"?"block":"none";
 }
 
+function toggleSenha(){
+  const inp=document.getElementById("i-pwd");
+  const btn=document.getElementById("eye-btn");
+  if(!inp||!btn) return;
+  if(inp.type==="password"){inp.type="text";btn.textContent="🙈";}
+  else{inp.type="password";btn.textContent="👁";}
+}
+
 // ══════════ DNS SERVER LIST ══════════
 // Lista de servidores pra testar automaticamente
 // Você adiciona aqui os servidores dos seus clientes
