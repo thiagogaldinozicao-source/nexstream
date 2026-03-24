@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MousePlay</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐭</text></svg>""")/>>
-<!-- CORREÇÃO DO ERRO: Carregamento prioritário da biblioteca -->
+<title>MousePlay - Universal</title>
+<!-- CARREGAMENTO DO MOTOR DE VÍDEO -->
 <script src="https://cdn.jsdelivr.net"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -16,7 +15,7 @@
 }
 body{background:var(--bg);color:var(--txt);font-family:ui-sans-serif,system-ui,sans-serif;min-height:100vh;overflow:hidden}
 
-/* VISUAL ORIGINAL PRESERVADO */
+/* VISUAL CINEMATOGRÁFICO ORIGINAL */
 #sc-login{display:flex;align-items:center;justify-content:center;min-height:100vh;position:relative;overflow:hidden;background:#07080a;}
 #sc-login::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,194,255,.06) 0%, transparent 60%);pointer-events:none;}
 .film-strip{position:absolute;display:flex;flex-direction:column;gap:3px;pointer-events:none;opacity:.18;width:40px;top:0;bottom:0;}
@@ -30,12 +29,12 @@ body{background:var(--bg);color:var(--txt);font-family:ui-sans-serif,system-ui,s
 .card{background:rgba(15,19,24,.95);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,.6);}
 .inp{width:100%;background:var(--s2);border:1px solid var(--brd);border-radius:8px;padding:12px;color:var(--txt);margin-bottom:12px;outline:none;font-family:inherit}
 .inp:focus{border-color:var(--acc)}
-.btn-connect{width:100%;background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;border-radius:8px;padding:14px;color:#000;font-weight:700;cursor:pointer}
+.btn-connect{width:100%;background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;border-radius:8px;padding:14px;color:#000;font-weight:700;cursor:pointer;opacity:0.6}
 
 /* PLAYER */
 #sc-main{display:none;width:100vw;height:100vh;background:#000;position:fixed;inset:0;z-index:99}
 video{width:100%;height:100%}
-#status{color:var(--red);font-size:12px;margin-top:10px;text-align:center;min-height:15px}
+#status{color:var(--mut);font-size:11px;margin-top:10px;text-align:center;text-transform:uppercase;letter-spacing:1px}
 </style>
 </head>
 <body>
@@ -48,11 +47,11 @@ video{width:100%;height:100%}
         <div class="login-logo">MousePlay</div>
         <div class="login-sub">Cinema Experience</div>
         <div class="card">
-            <input type="text" id="dns" class="inp" placeholder="DNS do Servidor" value="http://zicao.top:80">
+            <input type="text" id="dns" class="inp" placeholder="DNS do Servidor (ex: http://link.com:80)">
             <input type="text" id="user" class="inp" placeholder="Usuário">
             <input type="password" id="pass" class="inp" placeholder="Senha">
-            <button class="btn-connect" onclick="conectar()">ENTRAR</button>
-            <div id="status"></div>
+            <button class="btn-connect" id="btn-entrar" onclick="conectar()" disabled>AGUARDE...</button>
+            <div id="status">Verificando motor de vídeo...</div>
         </div>
     </div>
 </div>
@@ -62,26 +61,41 @@ video{width:100%;height:100%}
 </div>
 
 <script>
+// 1. SISTEMA ANTI-ERRO: Verifica se o motor de vídeo carregou
+function verificarMotor() {
+    const btn = document.getElementById('btn-entrar');
+    const status = document.getElementById('status');
+    if (typeof Hls !== 'undefined') {
+        btn.disabled = false;
+        btn.innerText = "ENTRAR";
+        btn.style.opacity = "1";
+        status.innerText = "Sistema Pronto";
+    } else {
+        setTimeout(verificarMotor, 1000);
+    }
+}
+window.onload = verificarMotor;
+
 function conectar() {
-    const dns = document.getElementById('dns').value.trim().replace(/\/$/, "");
+    let dns = document.getElementById('dns').value.trim();
     const user = document.getElementById('user').value.trim();
     const pass = document.getElementById('pass').value.trim();
     const status = document.getElementById('status');
 
-    if (!user || !pass || !dns) {
+    if (!dns || !user || !pass) {
+        status.style.color = "var(--red)";
         status.innerText = "Preencha todos os campos!";
         return;
     }
 
-    // CORREÇÃO: Garante que a biblioteca Hls existe antes de chamar
-    if (typeof Hls === 'undefined') {
-        status.innerText = "Aguarde o carregamento do motor de vídeo...";
-        return;
-    }
+    // 2. LÓGICA UNIVERSAL DE DNS: Garante que a URL esteja correta
+    if (!dns.startsWith('http')) dns = 'http://' + dns;
+    dns = dns.replace(/\/$/, ""); // Remove barra no final se houver
 
-    status.innerText = "Conectando...";
+    status.style.color = "var(--acc)";
+    status.innerText = "Conectando ao Cinema...";
 
-    // Proxy para evitar erro de Mixed Content (HTTPS -> HTTP)
+    // 3. PROXY UNIVERSAL: Burlar bloqueios de segurança (HTTPS vs HTTP e CORS)
     const streamUrl = `https://api.allorigins.win{encodeURIComponent(dns + '/live/' + user + '/' + pass + '/1.m3u8')}`;
 
     document.getElementById('sc-login').style.display = 'none';
@@ -93,9 +107,18 @@ function conectar() {
 function iniciarPlayer(url) {
     const video = document.getElementById('video');
     if (Hls.isSupported()) {
-        const hls = new Hls();
+        const hls = new Hls({
+            xhrSetup: function(xhr) {
+                xhr.withCredentials = false; // Necessário para evitar erro 403 em alguns servidores
+            }
+        });
         hls.loadSource(url);
         hls.attachMedia(video);
+        hls.on(Hls.Events.ERROR, function(e, data) {
+            if(data.fatal) {
+                console.error("Erro no streaming. Verifique os dados.");
+            }
+        });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url;
     }
