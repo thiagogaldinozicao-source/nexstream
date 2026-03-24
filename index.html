@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MousePlay - Versão Blindada</title>
+<title>MousePlay - Turbo</title>
+<!-- CARREGAMENTO ULTRA RÁPIDO -->
+<script src="https://cdnjs.cloudflare.com"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -13,7 +15,7 @@
 }
 body{background:var(--bg);color:var(--txt);font-family:ui-sans-serif,system-ui,sans-serif;overflow:hidden;min-height:100vh}
 
-/* SEU VISUAL CINEMATOGRÁFICO ORIGINAL */
+/* SEU VISUAL ORIGINAL */
 #sc-login{display:flex;align-items:center;justify-content:center;min-height:100vh;position:relative;overflow:hidden;background:#07080a;}
 #sc-login::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,194,255,.06) 0%, transparent 60%);pointer-events:none;}
 .film-strip{position:absolute;display:flex;flex-direction:column;gap:3px;pointer-events:none;opacity:.18;width:40px;top:0;bottom:0;}
@@ -44,11 +46,11 @@ video{width:100%;height:100%}
         <div class="login-logo">MousePlay</div>
         <div class="login-sub">Cinema Experience</div>
         <div class="card">
-            <input type="text" id="dns" class="inp" placeholder="DNS do Servidor" value="">
+            <input type="text" id="dns" class="inp" placeholder="Servidor (DNS)" value="http://mundoma.top">
             <input type="text" id="user" class="inp" placeholder="Usuário">
             <input type="password" id="pass" class="inp" placeholder="Senha">
-            <button class="btn-connect" id="btn-entrar" onclick="conectar()">ENTRAR</button>
-            <div id="status">Iniciando sistema...</div>
+            <button class="btn-connect" onclick="conectar()">ENTRAR</button>
+            <div id="status">SISTEMA PRONTO</div>
         </div>
     </div>
 </div>
@@ -58,42 +60,24 @@ video{width:100%;height:100%}
 </div>
 
 <script>
-// SOLUÇÃO FINAL: Carregamento forçado via código
-(function loadHls() {
-    const script = document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net";
-    script.onload = () => {
-        document.getElementById('status').innerText = "Sistema Pronto";
-        console.log("HLS Carregado com sucesso");
-    };
-    script.onerror = () => {
-        document.getElementById('status').innerText = "Erro ao carregar motor. Tente recarregar.";
-    };
-    document.head.appendChild(script);
-})();
-
 function conectar() {
     let dns = document.getElementById('dns').value.trim();
     const user = document.getElementById('user').value.trim();
     const pass = document.getElementById('pass').value.trim();
     const status = document.getElementById('status');
 
-    if (typeof Hls === 'undefined') {
-        status.innerText = "Aguarde o motor de vídeo...";
-        return;
-    }
-
     if (!dns || !user || !pass) {
-        status.innerText = "Preencha todos os campos!";
+        status.innerText = "PREENCHA TUDO!";
         return;
     }
 
+    // Limpeza de DNS rápida
     if (!dns.startsWith('http')) dns = 'http://' + dns;
     dns = dns.replace(/\/$/, "");
 
-    status.innerText = "Conectando...";
+    status.innerText = "CONECTANDO...";
 
-    // Usando Proxy para evitar erro de Mixed Content (HTTPS -> HTTP)
+    // Usando Proxy AllOrigins (o mais rápido para IPTV)
     const streamUrl = `https://api.allorigins.win{encodeURIComponent(dns + '/live/' + user + '/' + pass + '/1.m3u8')}`;
 
     document.getElementById('sc-login').style.display = 'none';
@@ -104,12 +88,13 @@ function conectar() {
 
 function iniciarPlayer(url) {
     const video = document.getElementById('video');
-    if (Hls.isSupported()) {
+    // Se o Hls ainda não carregou, ele tenta usar o player nativo do navegador
+    if (window.Hls && Hls.isSupported()) {
         const hls = new Hls();
         hls.loadSource(url);
         hls.attachMedia(video);
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
+    } else {
+        video.src = url; // Fallback para Safari/iOS
     }
 }
 </script>
