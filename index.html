@@ -551,15 +551,10 @@ google-cast-launcher{
 
 <!-- ══ LOGIN ══ -->
 <div id="sc-login">
-  <!-- Elementos cinematográficos -->
   <div class="film-strip-left"></div>
   <div class="film-strip-right"></div>
   <div class="projector-ray"></div>
-  <div class="dust"></div>
-  <div class="dust"></div>
-  <div class="dust"></div>
-  <div class="dust"></div>
-  <div class="dust"></div>
+  <div class="dust"></div><div class="dust"></div><div class="dust"></div><div class="dust"></div><div class="dust"></div>
   <div class="login-wrap">
     <div class="login-logo">🐭 MousePlay</div>
     <div class="login-sub">Bem-vindo</div>
@@ -573,9 +568,7 @@ google-cast-launcher{
         <input class="inp" id="i-pwd" type="password" placeholder="••••••••" style="padding-right:42px"/>
         <button onclick="toggleSenha()" type="button"
           style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;
-          color:var(--mut);cursor:pointer;font-size:16px;padding:0;line-height:1" id="eye-btn" title="Ver senha">
-          👁
-        </button>
+          color:var(--mut);cursor:pointer;font-size:16px;padding:0;line-height:1" id="eye-btn" title="Ver senha">👁</button>
       </div>
       <button class="btn-connect" id="btn-conn" onclick="doLogin()">▶ Entrar</button>
       <div class="err-box" id="err"></div>
@@ -963,118 +956,55 @@ function playStream(url){
   if(hls){hls.destroy();hls=null;}
   if(!url||url==="#"){document.getElementById("pl-err").textContent="⚠ URL indisponível.";return;}
 
-  const isM3U8=url.includes(".m3u8");
-  const isHTTP=url.startsWith("http://");
-  const inHTTPS=location.protocol==="https:";
-
-  // MP4 direto ou m3u8 nativo (Safari)
   const tryNative=(src)=>{v.src=src;v.load();v.play().catch(()=>{});};
 
-  if(isM3U8 && Hls.isSupported()){
-    // HLS.js — configura pra passar pelo Worker se Mixed Content
-    const hlsConfig={
+  if(url.includes(".m3u8") && Hls.isSupported()){
+    hls=new Hls({
       maxBufferLength:15,
       maxMaxBufferLength:30,
       maxBufferHole:0.5,
       lowLatencyMode:false,
       enableWorker:true,
       startLevel:-1,
-    };
-
-    // Se estamos em HTTPS e stream é HTTP, redireciona via Worker
-    if(isHTTP && inHTTPS && WORKER_URL){
-      hlsConfig.xhrSetup=function(xhr,xhrUrl){
-        // Reescreve URLs HTTP pra passar pelo Worker
-        if(xhrUrl.startsWith("http://")){
-          const proxied=WORKER_URL+"?url="+encodeURIComponent(xhrUrl);
-          xhr.open("GET",proxied,true);
-        }
-      };
-      // Também reescreve a URL inicial da playlist
-      url=WORKER_URL+"?url="+encodeURIComponent(url);
-    }
-
-    hls=new Hls(hlsConfig);
+    });
     hls.loadSource(url);
     hls.attachMedia(v);
     hls.on(Hls.Events.MANIFEST_PARSED,()=>v.play().catch(()=>{}));
     hls.on(Hls.Events.ERROR,(e,d)=>{
       if(d.fatal){
-        if(d.type===Hls.ErrorTypes.NETWORK_ERROR){
-          // Tenta recarregar uma vez
-          hls.startLoad();
-        } else {
-          document.getElementById("pl-err").textContent="⚠ Erro no stream. Tente outro canal.";
-        }
+        if(d.type===Hls.ErrorTypes.NETWORK_ERROR){hls.startLoad();}
+        else{document.getElementById("pl-err").textContent="⚠ Erro no stream. Tente outro canal.";}
       }
     });
-  } else if(isM3U8 && v.canPlayType("application/vnd.apple.mpegurl")){
-    // Safari nativo — lida com m3u8 direto
+  } else if(url.includes(".m3u8") && v.canPlayType("application/vnd.apple.mpegurl")){
     tryNative(url);
   } else {
-    // MP4 — vai direto, se Mixed Content o Chrome tenta upgrade automático
     tryNative(url);
   }
 }
 
 // ══════════ API ══════════
-// ┌─────────────────────────────────────────────────────┐
-// │  COLE AQUI a URL do seu Cloudflare Worker:          │
-// │  (veja o arquivo worker.js para instruções)         │
-// └─────────────────────────────────────────────────────┘
-const WORKER_URL = "https://mouseplay-proxy.thiagogaldinozicao.workers.dev"; // Cloudflare Worker proxy
-
-// Fallback: proxies públicos (instáveis, usados se Worker não configurado)
-const CORS_PROXIES=[
-  "https://corsproxy.io/?",
-  "https://api.allorigins.win/raw?url=",
-];
-
-function needsProxy(){
-  return S.server.startsWith("http://") && location.protocol==="https:";
-}
-
-function proxify(url){
-  if(!needsProxy()) return url;
-  // Prioridade: Worker próprio > proxies públicos
-  if(WORKER_URL) return WORKER_URL + "?url=" + encodeURIComponent(url);
-  return CORS_PROXIES[0] + encodeURIComponent(url);
-}
+const WORKER_URL = "https://mouseplay-proxy.thiagogaldinozicao.workers.dev";
 
 function api(action,extra=""){
   return `${S.server}/player_api.php?username=${S.user}&password=${S.pass}&action=${action}${extra||""}`;
 }
 
 function streamUrl(id,type){
-  const base=S.server;
-  // Streams vão DIRETO pro servidor IPTV — nunca passam pelo Worker
-  // O player de vídeo (HLS.js / nativo) lida com HTTP direto sem problema de CORS
-  if(type==="channel") return `${base}/live/${S.user}/${S.pass}/${id}.m3u8`;
-  if(type==="movie") return `${base}/movie/${S.user}/${S.pass}/${id}.mp4`;
-  return `${base}/series/${S.user}/${S.pass}/${id}.mp4`;
+  // Streams vão SEMPRE direto pro servidor — sem proxy
+  if(type==="channel") return `${S.server}/live/${S.user}/${S.pass}/${id}.m3u8`;
+  if(type==="movie")   return `${S.server}/movie/${S.user}/${S.pass}/${id}.mp4`;
+  return `${S.server}/series/${S.user}/${S.pass}/${id}.mp4`;
 }
 
 async function apiFetch(action,extra=""){
   const url=api(action,extra);
+  // Tenta: 1) Worker, 2) direto
+  const attempts=[
+    WORKER_URL+"?url="+encodeURIComponent(url),
+    url,
+  ];
   let lastErr=null;
-
-  // Monta lista de tentativas
-  const attempts=[];
-  if(!needsProxy()){
-    // Mesmo protocolo — chama direto
-    attempts.push(url);
-  } else {
-    // Mixed content — precisa proxy
-    if(WORKER_URL){
-      // Worker próprio (confiável)
-      attempts.push(WORKER_URL + "?url=" + encodeURIComponent(url));
-    }
-    // Direto (pode funcionar em HTTP)
-    attempts.push(url);
-    // Fallback: proxies públicos
-    CORS_PROXIES.forEach(p=>attempts.push(p + encodeURIComponent(url)));
-  }
-
   for(let i=0;i<attempts.length;i++){
     try{
       const ctrl=new AbortController();
@@ -1082,14 +1012,12 @@ async function apiFetch(action,extra=""){
       const r=await fetch(attempts[i],{signal:ctrl.signal});
       clearTimeout(timer);
       if(!r.ok) throw new Error("HTTP "+r.status);
-      const data=await r.json();
-      return data;
+      return await r.json();
     }catch(e){
       lastErr=e;
-      console.warn(`[MousePlay] Tentativa ${i+1}/${attempts.length} falhou:`,e.message);
     }
   }
-  throw lastErr||new Error("Falha na conexão — verifique se o Worker está configurado");
+  throw lastErr||new Error("Falha na conexão");
 }
 
 function toggleSenha(){
@@ -1101,32 +1029,15 @@ function toggleSenha(){
 }
 
 // ══════════ DNS SERVER LIST ══════════
-// Adicione TODOS os seus servidores aqui.
-// O app testa todos automaticamente no login — o primeiro que responder, conecta.
-// Formato: "http://servidor.com:porta" (sem barra no final)
-const DNS_SERVERS=[
-  // ── Cole seus servidores abaixo ──
-  // "http://zicao.top",
-  // "http://servidor2.com:8080",
-  // "http://servidor3.com:25461",
-  // ── Adicione quantos quiser ──
-];
+const DNS_SERVERS=[];
 
 async function tryServer(server,usr,pwd){
   const url=`${server}/player_api.php?username=${encodeURIComponent(usr)}&password=${encodeURIComponent(pwd)}&action=authenticate`;
-  
-  // Monta tentativas: Worker > direto > proxies públicos
-  const attempts=[];
-  const isHTTP=server.startsWith("http://") && location.protocol==="https:";
-  
-  if(isHTTP && WORKER_URL){
-    attempts.push(WORKER_URL + "?url=" + encodeURIComponent(url));
-  }
-  attempts.push(url); // direto
-  if(isHTTP){
-    CORS_PROXIES.forEach(p=>attempts.push(p + encodeURIComponent(url)));
-  }
-  
+  // Tenta via Worker primeiro, depois direto
+  const attempts=[
+    WORKER_URL+"?url="+encodeURIComponent(url),
+    url,
+  ];
   for(const fetchUrl of attempts){
     try{
       const ctrl=new AbortController();
@@ -1150,22 +1061,13 @@ async function doLogin(){
   const btn=document.getElementById("btn-conn");
   errEl.style.display="none";
 
-  if(!dns){
-    errEl.innerHTML="⚠ Preencha o DNS (servidor).";
-    errEl.style.display="block";
-    return;
-  }
-  if(!usr||!pwd){
-    errEl.innerHTML="⚠ Preencha usuário e senha.";
-    errEl.style.display="block";
-    return;
-  }
+  if(!dns){errEl.innerHTML="⚠ Preencha o DNS (servidor).";errEl.style.display="block";return;}
+  if(!usr||!pwd){errEl.innerHTML="⚠ Preencha usuário e senha.";errEl.style.display="block";return;}
 
   btn.disabled=true;
   btn.innerHTML=`<div class="spin"></div> Conectando...`;
 
   const result=await tryServer(dns,usr,pwd);
-
   if(!result){
     errEl.innerHTML="⚠ Falha ao conectar.<br><small style='font-size:11px'>Verifique DNS, usuário e senha.</small>";
     errEl.style.display="block";
@@ -1174,7 +1076,6 @@ async function doLogin(){
     return;
   }
 
-  // Conectou!
   S.server=dns;
   S.user=usr;
   S.pass=pwd;
@@ -1589,7 +1490,7 @@ function renderTop10Inner(){
         return `<div class="top10-card" onclick="${onclick}">
           <div class="top10-poster-img">
             ${poster
-              ?`<img src="${imgSrc(poster)}" loading="lazy" onerror="this.style.display='none'"/>`
+              ?`<img src="${poster}" loading="lazy" onerror="this.style.display='none'"/>`
               :`<span class="top10-poster-fb">${item.type==="movie"?"🎬":"📺"}</span>`}
             ${hasIt?`<div class="top10-avail-dot" title="Disponível na sua lista"></div>`:""}
           </div>
@@ -1850,7 +1751,7 @@ function renderSeries(){
             `showNoMatch('${esc(t.name)}')`;
           return `<div class="top10-card" onclick="${onclick}">
             <div class="top10-poster-img">
-              ${poster?`<img src="${imgSrc(poster)}" loading="lazy" onerror="this.style.display='none'"/>`:
+              ${poster?`<img src="${poster}" loading="lazy" onerror="this.style.display='none'"/>`:
                 `<span class="top10-poster-fb">📺</span>`}
               ${hasIt?`<div class="top10-avail-dot"></div>`:""}
             </div>
@@ -1914,7 +1815,7 @@ function smartersCards(arr,type){
     return `<div class="sc" onclick="openModal(${sid},'${type}')">
       <div class="sc-poster">
         ${cover&&cover.startsWith("http")?
-          `<img src="${imgSrc(cover)}" loading="lazy" onerror="this.style.display='none'"/>`:
+          `<img src="${cover}" loading="lazy" onerror="this.style.display='none'"/>`:
           `<span class="sc-fb">${type==="series"?"📺":"🎬"}</span>`}
         ${rating?`<span class="sc-rating">${rating.toFixed(0)}</span>`:""}
         <button class="sc-fav${isFav?" on":""}" onclick="event.stopPropagation();toggleFav('${fk}')">${isFav?"★":"☆"}</button>
@@ -1993,7 +1894,7 @@ function chList(arr){
     return `<div class="ch-row" onclick="openModal(${sid},'channel')">
       <div class="ch-num">${i+1}</div>
       <div class="ch-logo">${logo&&logo.startsWith("http")?
-        `<img src="${imgSrc(logo)}" onerror="this.style.display='none'" loading="lazy"/>`:
+        `<img src="${logo}" onerror="this.style.display='none'" loading="lazy"/>`:
         `<div class="ch-logo-fb">${(ch.name||"?").substring(0,4)}</div>`}</div>
       <div class="ch-info">
         <div class="ch-name">${esc(ch.name)}</div>
@@ -2015,7 +1916,7 @@ function medGrid(arr,type){
     const ratingNum=parseFloat(rating)||0;
     return `<div class="med-card" onclick="openModal(${sid},'${type}')">
       <div class="poster">
-        ${cover&&cover.startsWith("http")?`<img src="${imgSrc(cover)}" loading="lazy" onerror="this.style.display='none'"/>`:
+        ${cover&&cover.startsWith("http")?`<img src="${cover}" loading="lazy" onerror="this.style.display='none'"/>`:
           `<span class="poster-fb">${type==="series"?"📺":"🎬"}</span>`}
         ${ratingNum?`<span class="rating-badge">★ ${ratingNum.toFixed(1)}</span>`:""}
         <button class="fav-badge${isFav?" on":""}" onclick="event.stopPropagation();toggleFav('${fk}')">${isFav?"★":"☆"}</button>
@@ -2049,7 +1950,7 @@ function onSearch(){
     html+=`<div class="sr-section"><div class="sr-label">📡 Canais</div>
       ${chs.map(c=>`<div class="sr-item" onclick="closeSearch();openModal(${c.stream_id},'channel')">
         <div class="sr-thumb">${c.stream_icon&&c.stream_icon.startsWith("http")?
-          `<img src="${imgSrc(c.stream_icon)}" loading="lazy" onerror="this.style.display='none'"/>`:
+          `<img src="${c.stream_icon}" loading="lazy" onerror="this.style.display='none'"/>`:
           `<span style="font-size:11px;font-weight:700;color:var(--mut)">${(c.name||"?").substring(0,3)}</span>`}
         </div>
         <div class="sr-info"><div class="sr-name">${esc(c.name)}</div><div class="sr-meta">${esc(c.category_name||"")}</div></div>
@@ -2062,7 +1963,7 @@ function onSearch(){
     html+=`<div class="sr-section"><div class="sr-label">🎬 Filmes</div>
       ${movs.map(m=>`<div class="sr-item" onclick="closeSearch();openModal(${m.stream_id},'movie')">
         <div class="sr-thumb">${m.stream_icon&&m.stream_icon.startsWith("http")?
-          `<img src="${imgSrc(m.stream_icon)}" loading="lazy" onerror="this.style.display='none'"/>`:
+          `<img src="${m.stream_icon}" loading="lazy" onerror="this.style.display='none'"/>`:
           `<span style="font-size:18px">🎬</span>`}
         </div>
         <div class="sr-info"><div class="sr-name">${esc(m.name||"")}</div><div class="sr-meta">${m.year||""}</div></div>
@@ -2075,7 +1976,7 @@ function onSearch(){
     html+=`<div class="sr-section"><div class="sr-label">📺 Séries</div>
       ${sers.map(s=>`<div class="sr-item" onclick="closeSearch();openModal(${s.series_id},'series')">
         <div class="sr-thumb">${s.cover&&s.cover.startsWith("http")?
-          `<img src="${imgSrc(s.cover)}" loading="lazy" onerror="this.style.display='none'"/>`:
+          `<img src="${s.cover}" loading="lazy" onerror="this.style.display='none'"/>`:
           `<span style="font-size:18px">📺</span>`}
         </div>
         <div class="sr-info"><div class="sr-name">${esc(s.name||"")}</div><div class="sr-meta">${s.genre||""}</div></div>
@@ -2130,7 +2031,7 @@ function openModal(id,type){
   const rating=parseFloat(item.rating||item.rating_5based||0)||0;
 
   let html="";
-  if(cover&&cover.startsWith("http")) html+=`<img class="modal-poster" src="${imgSrc(cover)}" onerror="this.style.display='none'"/>`;
+  if(cover&&cover.startsWith("http")) html+=`<img class="modal-poster" src="${cover}" onerror="this.style.display='none'"/>`;
   html+=`<div class="modal-body">
     <div class="modal-hdr">
       <div class="modal-title">${esc(item.name||item.title||"")}</div>
@@ -2259,12 +2160,6 @@ function updatePlFav(){
 // ══════════ UTILS ══════════
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/'/g,"\\'").replace(/"/g,"&quot;");}
 
-// Proxy imagens HTTP quando estamos em HTTPS (resolve Mixed Content warnings)
-function imgSrc(url){
-  if(!url||!url.startsWith("http://")) return url||"";
-  if(location.protocol==="https:"&&WORKER_URL) return WORKER_URL+"?url="+encodeURIComponent(url);
-  return url;
-}
 // ══════════ INIT ══════════
 show("sc-login");
 document.getElementById("i-pwd").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
