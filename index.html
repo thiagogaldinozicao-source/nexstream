@@ -963,30 +963,57 @@ function playStream(url){
   if(hls){hls.destroy();hls=null;}
   if(!url||url==="#"){document.getElementById("pl-err").textContent="⚠ URL indisponível.";return;}
 
-  const tryNative=()=>{v.src=url;v.load();v.play().catch(()=>{});};
+  const isM3U8=url.includes(".m3u8");
+  const isHTTP=url.startsWith("http://");
+  const inHTTPS=location.protocol==="https:";
 
-  if(Hls.isSupported()){
-    hls=new Hls({
+  // MP4 direto ou m3u8 nativo (Safari)
+  const tryNative=(src)=>{v.src=src;v.load();v.play().catch(()=>{});};
+
+  if(isM3U8 && Hls.isSupported()){
+    // HLS.js — configura pra passar pelo Worker se Mixed Content
+    const hlsConfig={
       maxBufferLength:15,
       maxMaxBufferLength:30,
       maxBufferHole:0.5,
       lowLatencyMode:false,
       enableWorker:true,
       startLevel:-1,
-    });
+    };
+
+    // Se estamos em HTTPS e stream é HTTP, redireciona via Worker
+    if(isHTTP && inHTTPS && WORKER_URL){
+      hlsConfig.xhrSetup=function(xhr,xhrUrl){
+        // Reescreve URLs HTTP pra passar pelo Worker
+        if(xhrUrl.startsWith("http://")){
+          const proxied=WORKER_URL+"?url="+encodeURIComponent(xhrUrl);
+          xhr.open("GET",proxied,true);
+        }
+      };
+      // Também reescreve a URL inicial da playlist
+      url=WORKER_URL+"?url="+encodeURIComponent(url);
+    }
+
+    hls=new Hls(hlsConfig);
     hls.loadSource(url);
     hls.attachMedia(v);
     hls.on(Hls.Events.MANIFEST_PARSED,()=>v.play().catch(()=>{}));
     hls.on(Hls.Events.ERROR,(e,d)=>{
       if(d.fatal){
-        if(d.type===Hls.ErrorTypes.NETWORK_ERROR){hls.startLoad();}
-        else{document.getElementById("pl-err").textContent="⚠ Erro no stream. Tente outro canal.";}
+        if(d.type===Hls.ErrorTypes.NETWORK_ERROR){
+          // Tenta recarregar uma vez
+          hls.startLoad();
+        } else {
+          document.getElementById("pl-err").textContent="⚠ Erro no stream. Tente outro canal.";
+        }
       }
     });
-  } else if(v.canPlayType("application/vnd.apple.mpegurl")){
-    tryNative();
+  } else if(isM3U8 && v.canPlayType("application/vnd.apple.mpegurl")){
+    // Safari nativo — lida com m3u8 direto
+    tryNative(url);
   } else {
-    tryNative();
+    // MP4 — vai direto, se Mixed Content o Chrome tenta upgrade automático
+    tryNative(url);
   }
 }
 
@@ -1020,14 +1047,11 @@ function api(action,extra=""){
 
 function streamUrl(id,type){
   const base=S.server;
-  // Streams: usa Worker se precisar de proxy (resolve Mixed Content nos players também)
-  let url="";
-  if(type==="channel") url=`${base}/live/${S.user}/${S.pass}/${id}.m3u8`;
-  else if(type==="movie") url=`${base}/movie/${S.user}/${S.pass}/${id}.mp4`;
-  else url=`${base}/series/${S.user}/${S.pass}/${id}.mp4`;
-  // Se estamos em HTTPS e servidor é HTTP, precisa proxy pro stream também
-  if(needsProxy() && WORKER_URL) return WORKER_URL + "?url=" + encodeURIComponent(url);
-  return url;
+  // Streams vão DIRETO pro servidor IPTV — nunca passam pelo Worker
+  // O player de vídeo (HLS.js / nativo) lida com HTTP direto sem problema de CORS
+  if(type==="channel") return `${base}/live/${S.user}/${S.pass}/${id}.m3u8`;
+  if(type==="movie") return `${base}/movie/${S.user}/${S.pass}/${id}.mp4`;
+  return `${base}/series/${S.user}/${S.pass}/${id}.mp4`;
 }
 
 async function apiFetch(action,extra=""){
