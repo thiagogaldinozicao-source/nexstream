@@ -1565,7 +1565,7 @@ function renderTop10Inner(){
         return `<div class="top10-card" onclick="${onclick}">
           <div class="top10-poster-img">
             ${poster
-              ?`<img src="${poster}" loading="lazy" onerror="this.style.display='none'"/>`
+              ?`<img src="${imgSrc(poster)}" loading="lazy" onerror="this.style.display='none'"/>`
               :`<span class="top10-poster-fb">${item.type==="movie"?"🎬":"📺"}</span>`}
             ${hasIt?`<div class="top10-avail-dot" title="Disponível na sua lista"></div>`:""}
           </div>
@@ -1826,7 +1826,7 @@ function renderSeries(){
             `showNoMatch('${esc(t.name)}')`;
           return `<div class="top10-card" onclick="${onclick}">
             <div class="top10-poster-img">
-              ${poster?`<img src="${poster}" loading="lazy" onerror="this.style.display='none'"/>`:
+              ${poster?`<img src="${imgSrc(poster)}" loading="lazy" onerror="this.style.display='none'"/>`:
                 `<span class="top10-poster-fb">📺</span>`}
               ${hasIt?`<div class="top10-avail-dot"></div>`:""}
             </div>
@@ -1890,7 +1890,7 @@ function smartersCards(arr,type){
     return `<div class="sc" onclick="openModal(${sid},'${type}')">
       <div class="sc-poster">
         ${cover&&cover.startsWith("http")?
-          `<img src="${cover}" loading="lazy" onerror="this.style.display='none'"/>`:
+          `<img src="${imgSrc(cover)}" loading="lazy" onerror="this.style.display='none'"/>`:
           `<span class="sc-fb">${type==="series"?"📺":"🎬"}</span>`}
         ${rating?`<span class="sc-rating">${rating.toFixed(0)}</span>`:""}
         <button class="sc-fav${isFav?" on":""}" onclick="event.stopPropagation();toggleFav('${fk}')">${isFav?"★":"☆"}</button>
@@ -1969,7 +1969,7 @@ function chList(arr){
     return `<div class="ch-row" onclick="openModal(${sid},'channel')">
       <div class="ch-num">${i+1}</div>
       <div class="ch-logo">${logo&&logo.startsWith("http")?
-        `<img src="${logo}" onerror="this.style.display='none'" loading="lazy"/>`:
+        `<img src="${imgSrc(logo)}" onerror="this.style.display='none'" loading="lazy"/>`:
         `<div class="ch-logo-fb">${(ch.name||"?").substring(0,4)}</div>`}</div>
       <div class="ch-info">
         <div class="ch-name">${esc(ch.name)}</div>
@@ -1991,7 +1991,7 @@ function medGrid(arr,type){
     const ratingNum=parseFloat(rating)||0;
     return `<div class="med-card" onclick="openModal(${sid},'${type}')">
       <div class="poster">
-        ${cover&&cover.startsWith("http")?`<img src="${cover}" loading="lazy" onerror="this.style.display='none'"/>`:
+        ${cover&&cover.startsWith("http")?`<img src="${imgSrc(cover)}" loading="lazy" onerror="this.style.display='none'"/>`:
           `<span class="poster-fb">${type==="series"?"📺":"🎬"}</span>`}
         ${ratingNum?`<span class="rating-badge">★ ${ratingNum.toFixed(1)}</span>`:""}
         <button class="fav-badge${isFav?" on":""}" onclick="event.stopPropagation();toggleFav('${fk}')">${isFav?"★":"☆"}</button>
@@ -2025,7 +2025,7 @@ function onSearch(){
     html+=`<div class="sr-section"><div class="sr-label">📡 Canais</div>
       ${chs.map(c=>`<div class="sr-item" onclick="closeSearch();openModal(${c.stream_id},'channel')">
         <div class="sr-thumb">${c.stream_icon&&c.stream_icon.startsWith("http")?
-          `<img src="${c.stream_icon}" loading="lazy" onerror="this.style.display='none'"/>`:
+          `<img src="${imgSrc(c.stream_icon)}" loading="lazy" onerror="this.style.display='none'"/>`:
           `<span style="font-size:11px;font-weight:700;color:var(--mut)">${(c.name||"?").substring(0,3)}</span>`}
         </div>
         <div class="sr-info"><div class="sr-name">${esc(c.name)}</div><div class="sr-meta">${esc(c.category_name||"")}</div></div>
@@ -2038,7 +2038,7 @@ function onSearch(){
     html+=`<div class="sr-section"><div class="sr-label">🎬 Filmes</div>
       ${movs.map(m=>`<div class="sr-item" onclick="closeSearch();openModal(${m.stream_id},'movie')">
         <div class="sr-thumb">${m.stream_icon&&m.stream_icon.startsWith("http")?
-          `<img src="${m.stream_icon}" loading="lazy" onerror="this.style.display='none'"/>`:
+          `<img src="${imgSrc(m.stream_icon)}" loading="lazy" onerror="this.style.display='none'"/>`:
           `<span style="font-size:18px">🎬</span>`}
         </div>
         <div class="sr-info"><div class="sr-name">${esc(m.name||"")}</div><div class="sr-meta">${m.year||""}</div></div>
@@ -2051,7 +2051,7 @@ function onSearch(){
     html+=`<div class="sr-section"><div class="sr-label">📺 Séries</div>
       ${sers.map(s=>`<div class="sr-item" onclick="closeSearch();openModal(${s.series_id},'series')">
         <div class="sr-thumb">${s.cover&&s.cover.startsWith("http")?
-          `<img src="${s.cover}" loading="lazy" onerror="this.style.display='none'"/>`:
+          `<img src="${imgSrc(s.cover)}" loading="lazy" onerror="this.style.display='none'"/>`:
           `<span style="font-size:18px">📺</span>`}
         </div>
         <div class="sr-info"><div class="sr-name">${esc(s.name||"")}</div><div class="sr-meta">${s.genre||""}</div></div>
@@ -2106,7 +2106,7 @@ function openModal(id,type){
   const rating=parseFloat(item.rating||item.rating_5based||0)||0;
 
   let html="";
-  if(cover&&cover.startsWith("http")) html+=`<img class="modal-poster" src="${cover}" onerror="this.style.display='none'"/>`;
+  if(cover&&cover.startsWith("http")) html+=`<img class="modal-poster" src="${imgSrc(cover)}" onerror="this.style.display='none'"/>`;
   html+=`<div class="modal-body">
     <div class="modal-hdr">
       <div class="modal-title">${esc(item.name||item.title||"")}</div>
@@ -2235,6 +2235,12 @@ function updatePlFav(){
 // ══════════ UTILS ══════════
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/'/g,"\\'").replace(/"/g,"&quot;");}
 
+// Proxy imagens HTTP quando estamos em HTTPS (resolve Mixed Content warnings)
+function imgSrc(url){
+  if(!url||!url.startsWith("http://")) return url||"";
+  if(location.protocol==="https:"&&WORKER_URL) return WORKER_URL+"?url="+encodeURIComponent(url);
+  return url;
+}
 // ══════════ INIT ══════════
 show("sc-login");
 document.getElementById("i-pwd").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
